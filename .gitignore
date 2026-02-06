@@ -361,3 +361,6 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+/ecfrInsights/ecfrinsights.db
+/ecfrInsights/ecfrinsights.db-shm
+/ecfrInsights/ecfrinsights.db-wal

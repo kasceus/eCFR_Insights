@@ -1,0 +1,188 @@
+@page
+@model SyncStatusModel
+
+<h2>Data synchronization status</h2>
+
+<div id="progressContainer" style="display: none; margin-bottom: 20px;">
+    <div id="progressTask" style="margin-bottom: 15px;">
+        <h4 id="taskName"></h4>
+        <div class="progress" style="height: 25px;">
+            <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated"
+                 role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
+                <span id="progressText">0%</span>
+            </div>
+        </div>
+        <small id="progressMessage" class="form-text text-muted"></small>
+    </div>
+</div>
+
+<form method="post" asp-page-handler="RunNow" id="runNowForm">
+    <button type="submit" class="btn btn-primary" id="runNowBtn">Run full sync now</button>
+</form>
+@{
+    //these buttons could be used to run pieces on demand, but for now they just run the full sync.  We can add more specific handlers later if needed.
+
+    /*
+     <form method="post" asp-page-handler="RunTitles" id="runTitlesForm">
+    <button type="submit" class="btn btn-primary" id="runTitlesBtn">Get Titles</button>
+</form>
+<form method="post" asp-page-handler="RunAgencies" id="runAgenciesForm">
+    <button type="submit" class="btn btn-primary" id="runTitlesBtn">Get Agencies</button>
+</form>
+<form method="post" asp-page-handler="RunCorrections" id="runCorrectionsForm">
+    <button type="submit" class="btn btn-primary" id="runTitlesBtn">Get Corrections</button>
+</form>
+<form method="post" asp-page-handler="RunXml" id="runXmlForm">
+    <button type="submit" class="btn btn-primary" id="runXmlBtn">Run XML sync now</button>
+</form>
+<form method="post" asp-page-handler="RunXmlHistorical" id="runXmlHistoryForm">
+    <button type="submit" class="btn btn-primary" id="runXmlBtn">Run Historical XML sync now</button>
+</form>
+*/
+}
+
+<table>
+    <thead>
+        <tr>
+            <th>Sync Type</th>
+            <th>Last Synced (UTC)</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var s in Model.Statuses)
+        {
+            <tr>
+                <td>@s.Name</td>
+                <td>@s.LastSyncedUtc.ToString("u")</td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@section Scripts {
+    <script>
+        let currentTaskId = null;
+        let pollingInterval = null;
+
+        // Form submission handler
+        document.querySelectorAll('form').forEach(form => {
+            form.addEventListener('submit', function(e) {
+                const button = this.querySelector('button[type="submit"]');
+                const taskName = button.textContent.trim();
+
+                // Store task info in sessionStorage
+                sessionStorage.setItem('currentTaskName', taskName);
+
+                // The form will submit and trigger the action, which will return the taskId
+            });
+        });
+
+        // When page loads, check if we're returning from a sync action
+        document.addEventListener('DOMContentLoaded', function() {
+            // First check URL for taskId (initial form submission)
+            const urlTaskId = new URLSearchParams(window.location.search).get('taskId');
+
+            // Fall back to localStorage if no URL taskId (page reload scenario)
+            const storedTaskId = localStorage.getItem('currentTaskId');
+
+            const taskId = urlTaskId || storedTaskId;
+
+            if (taskId) {
+                currentTaskId = taskId;
+                startProgressTracking(taskId);
+            }
+        });
+
+        function startProgressTracking(taskId) {
+            const taskName = sessionStorage.getItem('currentTaskName') || 'Task';
+
+            // Store taskId in localStorage for page reload scenarios
+            localStorage.setItem('currentTaskId', taskId);
+            console.log("set Item");
+            // Show progress container
+            document.getElementById('progressContainer').style.display = 'block';
+            document.getElementById('taskName').textContent = taskName;
+
+            // Disable buttons while task is running
+            disableButtons(true);
+
+            // Start polling for progress
+            pollingInterval = setInterval(() => {
+                fetch(`/api/taskprogress/${taskId}`)
+                    .then(response => {
+                        if (response.status === 404) {
+                            // Task not found, might be completed
+                            console.log("404 stopping")
+                            stopProgressTracking(true);
+                            return null;
+                        }
+                        return response.json();
+                    })
+                    .then(progress => {
+                        if (progress) {
+                            updateProgressUI(progress);
+                            console.log(progress.status);
+                            // Stop polling when task completes or fails
+                            if (progress.status !== 1) {
+
+                                stopProgressTracking(true);
+                            }
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error fetching progress:', error);
+                        // Don't stop tracking on network errors, keep polling
+                    });
+            }, 500); // Poll every 500ms
+        }
+
+        function updateProgressUI(progress) {
+            const progressBar = document.getElementById('progressBar');
+            const progressText = document.getElementById('progressText');
+            const progressMessage = document.getElementById('progressMessage');
+
+            progressBar.style.width = progress.progressPercentage + '%';
+            progressBar.setAttribute('aria-valuenow', progress.progressPercentage);
+            progressText.textContent = progress.progressPercentage + '%';
+            progressMessage.textContent = progress.currentMessage;
+
+            // Change color based on status
+            progressBar.classList.remove('progress-bar-success', 'progress-bar-danger');
+            if (progress.status === 'Completed') {
+                progressBar.classList.add('progress-bar-success');
+                progressBar.classList.remove('progress-bar-striped', 'progress-bar-animated');
+            } else if (progress.status === 'Failed') {
+                progressBar.classList.add('progress-bar-danger');
+                progressBar.classList.remove('progress-bar-striped', 'progress-bar-animated');
+                if (progress.errorMessage) {
+                    progressMessage.textContent = 'Error: ' + progress.errorMessage;
+                }
+            }
+        }
+
+        function stopProgressTracking(clearStorage = false) {
+            if (pollingInterval) {
+                clearInterval(pollingInterval);
+                pollingInterval = null;
+            }
+
+            // Only clear storage if task is actually complete (not on network errors)
+            if (clearStorage) {
+                localStorage.removeItem('currentTaskId');
+                sessionStorage.removeItem('currentTaskName');
+
+                // Re-enable buttons
+                disableButtons(false);
+
+                // Reload the page to show updated sync times
+               // location.reload();
+            }
+        }
+
+        function disableButtons(disabled) {
+            document.querySelectorAll('button[type="submit"]').forEach(btn => {
+                btn.disabled = disabled;
+            });
+        }
+    </script>
+}

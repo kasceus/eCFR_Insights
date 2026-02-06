@@ -1,0 +1,64 @@
+﻿@page "/agency/{slug}"
+@model AgencyDetailsModel
+@{
+    ViewData["Title"] = $"{Model.Agency?.AgencyName} — Agency Details";
+}
+
+<h2 class="mb-4">@Model.Agency?.AgencyName</h2>
+
+@if (Model.Agency == null)
+{
+    <p>Agency not found.</p>
+}
+else
+{
+    <div class="card mb-4">
+        <div class="card-body">
+            <h4 class="card-title">Analytics Summary</h4>
+            <p class="text-muted">Computed @Model.Agency.DateComputed.ToString("MMMM dd, yyyy")</p>
+
+            <table class="table table-striped">
+                <tbody>
+                    <tr>
+                        <th scope="row">Slug</th>
+                        <td>@Model.Agency.Slug</td>
+                    </tr>
+                    <tr>
+                        <th scope="row">Governing Document(s)</th>
+                        <td>@Model.AgencyRefs</td>
+                    </tr>
+                    <tr>
+                        <th scope="row">Total Hierarchies</th>
+                        <td>@Model.Agency.TotalHierarchies</td>
+                    </tr>
+                    <tr>
+                        <th scope="row">Total Words</th>
+                        <td>@Model.Agency.TotalWords</td>
+                    </tr>
+                    <tr>
+                        <th scope="row">Total Sub‑Agencies</th>
+                        <td>@Model.Agency.TotalSubAgencies</td>
+                    </tr>
+                    <tr>
+                        <th scope="row">Complexity Score</th>
+                        <td>@Model.Agency.ComplexityScore.ToString("0.000")</td>
+                    </tr>
+                    <tr>
+                        <th scope="row">Normalized Hierarchical</th>
+                        <td>@Model.Agency.NormHierarchical.ToString("0.000")</td>
+                    </tr>
+                    <tr>
+                        <th scope="row">Normalized Agencies</th>
+                        <td>@Model.Agency.NormAgencies.ToString("0.000")</td>
+                    </tr>
+                    <tr>
+                        <th scope="row">Normalized Wordcount</th>
+                        <td>@Model.Agency.NormWordcount.ToString("0.000")</td>
+                    </tr>                 
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <a class="btn btn-secondary" href="/analytics/agency">← Back to Treemap</a>
+}
