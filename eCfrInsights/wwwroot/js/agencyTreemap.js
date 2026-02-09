@@ -4,7 +4,7 @@
         const container = document.getElementById("treemapWrapper");
 
         const width = container.clientWidth || window.innerWidth;
-        const height = container.clientHeight || window.innerHeight;
+        const height = container.parentElement.clientHeight - 200 || window.innerHeight;
 
 
         d3.select("#agencyTreemap").selectAll("*").remove();

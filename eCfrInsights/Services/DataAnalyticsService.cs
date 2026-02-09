@@ -3,8 +3,6 @@ using ecfrInsights.Data.Entities;
 
 using Microsoft.EntityFrameworkCore;
 
-using static System.Runtime.InteropServices.JavaScript.JSType;
-
 namespace ecfrInsights.Services;
 
 public class DataAnalyticsService(EcfrContext context)
@@ -12,10 +10,10 @@ public class DataAnalyticsService(EcfrContext context)
 
     private async Task RemoveTodaysTitleCalculations(DateTime? date)
     {
-        date??= DateTime.Now;
+        date ??= DateTime.Now;
         DateTime fromDate = date.Value.Date;
         DateTime toDate = fromDate.AddDays(1).AddTicks(-15);
-        var existing = await context.CfrTitleComplexities
+        List<CfrTitleComplexity> existing = await context.CfrTitleComplexities
             .Where(c => c.DateComputed >= fromDate && c.DateComputed <= toDate).ToListAsync();
         if (existing != null)
         {
@@ -38,7 +36,7 @@ public class DataAnalyticsService(EcfrContext context)
         // ---------------------------------------------
         // 2. Batch query: HierarchicalCount
         // ---------------------------------------------
-        var hierarchicalCounts = await context.CfrHierarchies
+        Dictionary<int, int> hierarchicalCounts = await context.CfrHierarchies
             .AsNoTracking()
             .GroupBy(r => r.TitleNumber)
             .Select(g => new
@@ -51,7 +49,7 @@ public class DataAnalyticsService(EcfrContext context)
         // ---------------------------------------------
         // 3. Batch query: TotalAgencies
         // ---------------------------------------------
-        var agencyCounts = await context.CfrHierarchies
+        Dictionary<int, int> agencyCounts = await context.CfrHierarchies
                                 .AsNoTracking()
                                 .SelectMany(r => r.AgencyHierarchies)
                                 .Where(e => e.CfrHierarchy != null)
@@ -77,7 +75,7 @@ public class DataAnalyticsService(EcfrContext context)
               })
               .ToListAsync();   // <-- forces client evaluation
 
-        var grouped = wordCounts
+        Dictionary<int, int> grouped = wordCounts
             .GroupBy(x => x.TitleNumber)
             .ToDictionary(
                 g => g.Key,
@@ -92,9 +90,9 @@ public class DataAnalyticsService(EcfrContext context)
         // ---------------------------------------------
         // 5. Batch query: TotalCorrections (after startDate)
         // ---------------------------------------------
-        DateTime startDate = new DateTime(2025, 1, 1);
+        DateTime startDate = new(2025, 1, 1);
 
-        var correctionCounts = await context.Corrections
+        Dictionary<int, int> correctionCounts = await context.Corrections
             .AsNoTracking()
             .Where(c => c.ErrorCorrected >= startDate)
             .GroupBy(c => c.Title)
@@ -108,7 +106,7 @@ public class DataAnalyticsService(EcfrContext context)
         // ---------------------------------------------
         // 6. Build raw complexity objects
         // ---------------------------------------------
-        var raw = new List<CfrTitleComplexity>();
+        List<CfrTitleComplexity> raw = [];
 
         foreach (var titleDoc in titleKeys)
         {
@@ -119,7 +117,7 @@ public class DataAnalyticsService(EcfrContext context)
                 TotalAgencies = agencyCounts.GetValueOrDefault(titleDoc.Number, 0),
                 Wordcount = grouped.GetValueOrDefault(titleDoc.Number, 0),
                 TotalCorrections = correctionCounts.GetValueOrDefault(titleDoc.Number, 0),
-                TitleText=titleDoc.Name
+                TitleText = titleDoc.Name
             });
         }
 
@@ -134,7 +132,7 @@ public class DataAnalyticsService(EcfrContext context)
         // ---------------------------------------------
         // 8. Compute final complexity score
         // ---------------------------------------------
-        foreach (var t in raw)
+        foreach (CfrTitleComplexity t in raw)
         {
             t.ComplexityScore =
                 (t.NormHierarchical * 2) +
@@ -143,11 +141,11 @@ public class DataAnalyticsService(EcfrContext context)
                 (t.NormCorrections * 5);
         }
         //add the data to the database
-        var existingList = await context.CfrTitleComplexities.ToListAsync();
+        List<CfrTitleComplexity> existingList = await context.CfrTitleComplexities.ToListAsync();
 
         raw.ForEach(record =>
         {
-            var existing = existingList.FirstOrDefault(r => r.Title == record.Title);
+            CfrTitleComplexity? existing = existingList.FirstOrDefault(r => r.Title == record.Title);
             if (existing != null)
             {
                 existing.HierarchicalCount = record.HierarchicalCount;
@@ -162,7 +160,9 @@ public class DataAnalyticsService(EcfrContext context)
                 existing.DateComputed = DateTime.UtcNow;
             }
             else
+            {
                 context.CfrTitleComplexities.Add(record);
+            }
         });
         await context.SaveChangesAsync();
         return raw;
@@ -173,7 +173,7 @@ public class DataAnalyticsService(EcfrContext context)
         DateTime fromDate = date?.Date ?? DateTime.Now.Date;
         DateTime toDate = fromDate.AddDays(1).AddTicks(-15);
 
-        return await context.CfrTitleComplexities.Where(e=>e.DateComputed>= fromDate && e.DateComputed <=toDate).ToListAsync();
+        return await context.CfrTitleComplexities.Where(e => e.DateComputed >= fromDate && e.DateComputed <= toDate).ToListAsync();
     }
 
 
@@ -181,7 +181,7 @@ public class DataAnalyticsService(EcfrContext context)
     {
         DateTime fromDate = date.Date;
         DateTime toDate = date.Date.AddDays(1).AddTicks(-15);
-        var existing = await context.AgencyStatistics
+        List<AgencyStatistics> existing = await context.AgencyStatistics
             .Where(c => c.ForDate >= fromDate && c.ForDate <= toDate).ToListAsync();
         if (existing != null)
         {
@@ -205,7 +205,7 @@ public class DataAnalyticsService(EcfrContext context)
         // ---------------------------------------------
         // 2. TotalHierarchies per agency
         // ---------------------------------------------
-        var hierarchyCounts = await context.AgencyHierarchies
+        Dictionary<string, int> hierarchyCounts = await context.AgencyHierarchies
             .AsNoTracking()
             .GroupBy(h => h.Slug)
             .Select(g => new
@@ -218,7 +218,7 @@ public class DataAnalyticsService(EcfrContext context)
         // ---------------------------------------------
         // 3. TotalSubAgencies per agency
         // ---------------------------------------------
-        var subAgencyCounts = await context.Agencies
+        Dictionary<string, int> subAgencyCounts = await context.Agencies
             .AsNoTracking()
             .Where(h => h.Children != null)
             .GroupBy(h => h.Slug)
@@ -235,24 +235,26 @@ public class DataAnalyticsService(EcfrContext context)
         // ---------------------------------------------
         // 4. TotalWords (client-side wordcount)
         // ---------------------------------------------
-        var roots = await context.AgencyHierarchies
+        List<AgencyHierarchy> roots = await context.AgencyHierarchies
             .AsNoTracking()
             .Where(h => h.CfrHierarchy != null)
             .Include(h => h.CfrHierarchy)
             .ToListAsync();
 
-        var wordRows = new List<(string Slug, string Text)>();
+        List<(string Slug, string Text)> wordRows = [];
 
-        foreach (var h in roots)
+        foreach (AgencyHierarchy? h in roots)
         {
             await LoadChildren(h.CfrHierarchy!);
 
-            foreach (var text in ExtractAllText(h.CfrHierarchy!))
+            foreach (string text in ExtractAllText(h.CfrHierarchy!))
+            {
                 wordRows.Add((h.Slug, text));
+            }
         }
 
 
-        var wordCounts = wordRows
+        Dictionary<string, int> wordCounts = wordRows
             .GroupBy(x => x.Slug)
             .ToDictionary(
                 g => g.Key,
@@ -262,12 +264,12 @@ public class DataAnalyticsService(EcfrContext context)
                         : x.Text.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length
                 )
             );
-           
+
 
         // ---------------------------------------------
         // 5. Build raw stats
         // ---------------------------------------------
-        var stats = new List<AgencyStatistics>();
+        List<AgencyStatistics> stats = [];
 
         foreach (var a in agencies)
         {
@@ -292,8 +294,10 @@ public class DataAnalyticsService(EcfrContext context)
         // ---------------------------------------------
         // 7. Compute final complexity score
         // ---------------------------------------------
-        foreach (var s in stats)
+        foreach (AgencyStatistics s in stats)
+        {
             s.CalculateComplexityScore();
+        }
 
         context.AgencyStatistics.AddRange(stats);
         try
@@ -322,7 +326,7 @@ public class DataAnalyticsService(EcfrContext context)
         double max = items.Max(selector);
         double range = max - min;
 
-        foreach (var item in items)
+        foreach (T? item in items)
         {
             double value = selector(item);
             double normalized = range == 0 ? 0 : (value - min) / range;
@@ -332,7 +336,7 @@ public class DataAnalyticsService(EcfrContext context)
 
     internal async Task<List<AgencyStatistics>> GetAgencyStatistics(DateTime? date)
     {
-        date ??= DateTime.Now;
+        date ??= context.AgencyStatistics.Max(e => e.ForDate);
         DateTime fromdate = date.Value.Date;
         DateTime todate = fromdate.AddDays(1).AddTicks(-15);
 
@@ -348,18 +352,24 @@ public class DataAnalyticsService(EcfrContext context)
             .Collection(n => n.ChildReferences)
             .LoadAsync();
 
-        foreach (var child in node.ChildReferences)
+        foreach (CfrHierarchy child in node.ChildReferences)
+        {
             await LoadChildren(child);
+        }
     }
     IEnumerable<string> ExtractAllText(CfrHierarchy node)
     {
-        foreach (var child in node.ChildReferences)
+        foreach (CfrHierarchy child in node.ChildReferences)
         {
             if (!string.IsNullOrWhiteSpace(child.ReferenceContent))
+            {
                 yield return child.ReferenceContent;
+            }
 
-            foreach (var text in ExtractAllText(child))
+            foreach (string text in ExtractAllText(child))
+            {
                 yield return text;
+            }
         }
     }
 

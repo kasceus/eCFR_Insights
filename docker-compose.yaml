@@ -1,19 +1,21 @@
 services:
-  eCfr:
+  ecfr:
     build:
       context: .
       dockerfile: ecfrInsights/Dockerfile
     ports:
-      - 8080:80
-      - 8443:443
+      - 8080:8080
+      - 8443:8443
+    extra_hosts:
+    - "host.docker.internal:host-gateway"
     environment:
       - DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1
       - ASPNETCORE_ENVIRONMENT=Release
       - ASPNETCORE_Kestrel__Certificates__Default__Path=/https/ecfrInsights.pfx
       - ASPNETCORE_Kestrel__Certificates__Default__Password=${CertificatePassword}
     volumes:
-      - eCfr:/usr/share/ecfrcontainer/data   
+      - ecfr:/usr/share/ecfrcontainer/data   
 
 volumes:
-  eCfr: 
+  ecfr: 
     driver: local  

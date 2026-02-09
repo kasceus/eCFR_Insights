@@ -13,19 +13,21 @@ public class AgencyDetailsModel(IHttpClientFactory factory, AgencyService agency
     public string AgencyRefs = "";
     public async Task<IActionResult> OnGet(string slug)
     {
-        string url = $"{Request.Scheme}://{Request.Host}/api/analytics/agencies";
+        string url = $"http://localhost:8080/api/analytics/agencies";
 
-        var agencies = await _http.GetFromJsonAsync<List<AgencyStatistics>>(url);
+        List<AgencyStatistics>? agencies = await _http.GetFromJsonAsync<List<AgencyStatistics>>(url);
 
         Agency = agencies?.FirstOrDefault(a => a.Slug == slug);
 
 
 
         if (Agency == null)
+        {
             return NotFound();
+        }
         //get the Hierarchy ref for the agency
 
-        var refs = await agencyService.GetRefs(slug);
+        List<string> refs = await agencyService.GetRefs(slug);
         AgencyRefs = string.Join(", ", refs);
         return Page();
     }

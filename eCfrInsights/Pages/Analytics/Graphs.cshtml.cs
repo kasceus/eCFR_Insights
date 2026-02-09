@@ -1,11 +1,8 @@
 using ecfrInsights.Data.Entities;
 
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 
 using System.Text.Json;
-
-using static System.Net.WebRequestMethods;
 
 namespace ecfrInsights.Pages
 {
@@ -23,8 +20,8 @@ namespace ecfrInsights.Pages
 
         public async Task OnGet()
         {
-            string url = $"{Request.Scheme}://{Request.Host}/api/analytics/agencies";
-            var agencies = await _http.GetFromJsonAsync<List<AgencyStatistics>>(url);
+            string url = $"http://localhost:8080/api/analytics/agencies";
+            List<AgencyStatistics>? agencies = await _http.GetFromJsonAsync<List<AgencyStatistics>>(url);
 
             var hierarchy = new
             {
