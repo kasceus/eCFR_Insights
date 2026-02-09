@@ -335,6 +335,9 @@ __pycache__/
 # OpenCover UI analysis results
 OpenCover/
 
+# docker environment secrets
+*.env
+
 # Azure Stream Analytics local run output
 ASALocalRun/
 
@@ -364,3 +367,4 @@ FodyWeavers.xsd
 /ecfrInsights/ecfrinsights.db
 /ecfrInsights/ecfrinsights.db-shm
 /ecfrInsights/ecfrinsights.db-wal
+/ecfrInsights/.env
