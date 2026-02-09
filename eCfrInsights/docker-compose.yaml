@@ -1,0 +1,19 @@
+services:
+  eCfr:
+    build:
+      context: .
+      dockerfile: ecfrInsights/Dockerfile
+    ports:
+      - 8080:80
+      - 8443:443
+    environment:
+      - DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1
+      - ASPNETCORE_ENVIRONMENT=Release
+      - ASPNETCORE_Kestrel__Certificates__Default__Path=/https/ecfrInsights.pfx
+      - ASPNETCORE_Kestrel__Certificates__Default__Password=${CertificatePassword}
+    volumes:
+      - eCfr:/usr/share/ecfrcontainer/data   
+
+volumes:
+  eCfr: 
+    driver: local  

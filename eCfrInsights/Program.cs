@@ -1,11 +1,10 @@
 using ecfrInsights.Data;
 using ecfrInsights.Data.Entities;
-using ecfrInsights.DisplayModels;
 using ecfrInsights.Services;
 
 using Microsoft.EntityFrameworkCore;
 
-var builder = WebApplication.CreateBuilder(args);
+WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 builder.Services.AddDbContext<EcfrContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
 
@@ -22,7 +21,7 @@ builder.Services.AddSingleton<TaskProgressService>();
 builder.Services.AddScoped<DataAnalyticsService>();
 builder.Services.AddScoped<AgencyService>();
 
-var app = builder.Build();
+WebApplication app = builder.Build();
 
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())
